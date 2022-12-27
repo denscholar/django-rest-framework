@@ -4,25 +4,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view
-
-
-posts = [
-    {
-        "id": 1,
-        "title": "this is my first title",
-        "content": "this is going to be a good learning"
-    },
-    {
-        "id": 2,
-        "title": "this is my second title",
-        "content": "this is going to be a good learning two"
-    },
-    {
-        "id": 3,
-        "title": "this is my third title",
-        "content": "this is going to be a good learning three"
-    }
-]
+from .models import Post
+from .serializers import PostModelSerializer
+from django.shortcuts import get_object_or_404
 
 
 @api_view(http_method_names=['GET', 'POST'])
@@ -40,15 +24,62 @@ def post_request(request=Request):
     return Response(data=response, status=status.HTTP_200_OK)
 
 # list of post
-@api_view(http_method_names=['GET'])
-def posts_list(request:Request):
-    return Response(data=posts, status=status.HTTP_201_CREATED)
+
+
+@api_view(http_method_names=['GET', 'POST'])
+def posts_list(request: Request):
+    posts = Post.objects.all()
+
+    if request.method == 'POST':
+        data = request.data
+        serializer = PostModelSerializer(data=data)
+
+        if serializer.is_valid():
+            serializer.save()
+            response = {
+                "mesage": "post created successfully",
+                "data": serializer.data,
+            }
+            return Response(data=response, status=status.HTTP_201_CREATED)
+        return Response(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    serializer = PostModelSerializer(instance=posts, many=True)
+    response = {
+        "message": 'posts',
+        "data": serializer.data
+    }
+    return Response(data=response, status=status.HTTP_201_CREATED)
 
 # post details
-@api_view(http_method_names=['POST'])
-def posts_detail(request:Request, id):
-    post = posts[id] #get a single post by it's id
 
-    if post:
-        return Response(data=post, status=status.HTTP_201_CREATED)
-    return Response(data={"error": "eror post not found"})
+
+@api_view(http_method_names=['GET'])
+def posts_detail(request: Request, id):
+    post = get_object_or_404(Post, id=id)
+    serializer = PostModelSerializer(instance=post)
+    response = {
+        "message": "post detail created",
+        "data": serializer.data
+    }
+    return Response(data=response, status=status.HTTP_201_CREATED)
+
+@api_view(http_method_names=['PUT'])
+def update_post(request: Request, id):
+    post = get_object_or_404(Post, id=id)
+    data = request.data
+    serializer = PostModelSerializer(instance=post, data=data)
+    if serializer.is_valid():
+        serializer.save()
+
+        response = {
+            "message": "post detail created",
+            "data": serializer.data
+        }
+        return Response(data=response, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(http_method_names=['DELETE'])
+def delete_post(request: Request, id):
+    post = get_object_or_404(Post, id=id)
+    post.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
